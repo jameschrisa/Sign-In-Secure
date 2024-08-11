@@ -35,6 +35,13 @@ export default {
       axios.post('/register', { email: this.email, password: hashedPassword })
         .then(response => {
           console.log(response.data)
+          axios.post('/verify-email', { email: this.email })
+            .then(response => {
+              console.log(response.data)
+            })
+            .catch(error => {
+              console.error(error)
+            })
         })
         .catch(error => {
           console.error(error)
