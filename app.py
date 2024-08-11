@@ -1,22 +1,23 @@
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_session import Session
-from flask_wtf.csrf import CSRFProtect
+from flask_mail import Mail, Message
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
-app.config['SECRET_KEY'] = 'secret_key_here'
-app.config['SESSION_PERMANENT'] = False
-app.config['SESSION_TYPE'] = 'filesystem'
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'your-email@gmail.com'
+app.config['MAIL_PASSWORD'] = 'your-password'
 db = SQLAlchemy(app)
-Session(app)
-csrf = CSRFProtect(app)
+mail = Mail(app)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(120), nullable=False)
+    verified = db.Column(db.Boolean, default=False)
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -24,7 +25,6 @@ def login():
     password = request.json['password']
     user = User.query.filter_by(email=email).first()
     if user and check_password_hash(user.password, password):
-        session['user_id'] = user.id
         return jsonify({'message': 'Logged in successfully'})
     else:
         return jsonify({'error': 'Invalid email or password'}), 401
@@ -41,13 +41,26 @@ def register():
     db.session.commit()
     return jsonify({'message': 'Registered successfully'})
 
-@app.errorhandler(404)
-def page_not_found(e):
-    return jsonify({'error': 'Not found'}), 404
+@app.route('/reset-password', methods=['POST'])
+def reset_password():
+    email = request.json['email']
+    user = User.query.filter_by(email=email).first()
+    if user:
+        # Send password reset email here
+        msg = Message('Password Reset', sender='your-email@gmail.com', recipients=[email])
+        msg.body = 'Click this link to reset your password: http://example.com/reset-password'
+        mail.send(msg)
+        return jsonify({'message': 'Password reset email sent'})
+    else:
+        return jsonify({'error': 'Email not found'}), 404
 
-@app.errorhandler(500)
-def internal_server_error(e):
-    return jsonify({'error': 'Internal server error'}), 500
-
-if __name__ == '__main__':
-    app.run(debug=True)
+@app.route('/verify-email', methods=['POST'])
+def verify_email():
+    email = request.json['email']
+    user = User.query.filter_by(email=email).first()
+    if user:
+        user.verified = True
+        db.session.commit()
+        return jsonify({'message': 'Email verified'})
+    else:
+        return jsonify({'error': 'Email not found'}), 404
