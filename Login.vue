@@ -4,6 +4,7 @@
       <input type="email" v-model="email" placeholder="Email" :class="{ 'error': !isValidEmail(email) }">
       <input type="password" v-model="password" placeholder="Password">
       <button type="submit">Login</button>
+      <p>Forgot password? <a @click="resetPassword">Reset password</a></p>
     </form>
   </div>
 </template>
@@ -27,6 +28,15 @@ export default {
     login() {
       const hashedPassword = bcrypt.hashSync(this.password, 10);
       axios.post('/login', { email: this.email, password: hashedPassword })
+        .then(response => {
+          console.log(response.data)
+        })
+        .catch(error => {
+          console.error(error)
+        })
+    },
+    resetPassword() {
+      axios.post('/reset-password', { email: this.email })
         .then(response => {
           console.log(response.data)
         })
